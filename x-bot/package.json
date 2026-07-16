@@ -1,0 +1,12 @@
+{
+  "name": "huint-x-bot",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled bot that posts AI-generated engagement content about Huint to X.",
+  "scripts": {
+    "post": "node post.mjs"
+  },
+  "dependencies": {
+    "twitter-api-v2": "^1.18.2"
+  }
+}

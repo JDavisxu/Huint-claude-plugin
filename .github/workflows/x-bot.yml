@@ -1,0 +1,52 @@
+name: X bot post
+
+on:
+  schedule:
+    # Every 2 hours, on the hour.
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate a post but skip publishing to X"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: x-bot-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: x-bot
+        run: npm install --no-save
+
+      - name: Generate and post
+        working-directory: x-bot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: node post.mjs
+
+      - name: Commit updated history
+        run: |
+          git config user.name "huint-x-bot"
+          git config user.email "actions@github.com"
+          git add x-bot/history.jsonl
+          git diff --cached --quiet || git commit -m "x-bot: log post"
+          git push
