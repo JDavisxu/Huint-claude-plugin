@@ -29,13 +29,31 @@ from memory.
 
 1. Resolve the place first with `resolve_location` (free text) or
    `reverse_geocode` (lat/lng).
-2. Pass the resolver's payload to `create_task` as `location` **verbatim** — do
-   not rewrite `friendly_location_name`, `formatted_address`, or
-   `google_place_id`. The create schema requires fields only the resolvers
-   produce, so this ordering is enforced.
-3. Choose a stable `agent_task_id` and reuse it on retries — Huint returns the
+2. Do not treat `location_resolution_confidence` as a match-quality score —
+   Huint emits `1` for any accepted provider result, including a plausible
+   but wrong building or a reverse-geocode that drifted onto the wrong block.
+   A resolver payload's confidence field does not tell you it found the right
+   place, only that the provider returned *a* place. Before using the result,
+   sanity-check it yourself:
+   - Free-text query: does `friendly_location_name` / `formatted_address`
+     match the specific place you asked for (same street address, same
+     store), not just the same brand or neighborhood?
+   - Known coordinates: does the resolved `lat`/`lng` land close to the input
+     pin, and does `formatted_address` include a street line? A multi-hundred-
+     meter drift or a zip-level-only address is a bad resolution even at
+     confidence 1.
+   - When in doubt, call `quote_task` first — it resolves the pin server-side
+     and returns `resolved_location` for you to review before any money moves.
+   If the resolved place doesn't match what you know to be true, don't pass it
+   through — use the known-good address/place name or raw `lat`/`lng`
+   directly as `location` instead of the resolver payload.
+3. Pass the sanity-checked resolver payload to `create_task` as `location`
+   **verbatim** — do not rewrite `friendly_location_name`, `formatted_address`,
+   or `google_place_id`. The create schema requires fields only the resolvers
+   produce, so this ordering is enforced when you do use the resolver output.
+4. Choose a stable `agent_task_id` and reuse it on retries — Huint returns the
    existing task instead of charging twice.
-4. `create_task` debits operator escrow up front. Confirm the material details
+5. `create_task` debits operator escrow up front. Confirm the material details
    with the operator before calling it: location, bounty, deadline, photo count,
    and instructions.
 
